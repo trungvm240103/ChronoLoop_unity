@@ -8,17 +8,17 @@ public class RecordPlaybackManager : MonoBehaviour
     public class ActionRecord
     {
         public string actionType;
-        public float time;
+        public float time; // Relative time of this action
     }
 
     public List<ActionRecord> recordedActions = new List<ActionRecord>();
     private bool isRecording = false;
     private bool isPlaying = false;
-    private float startTime;
+    private float startTime; // Start time of the first action
+    private float lastActionTime = 0f; // Time of the last recorded action
     private int currentActionIndex = 0;
 
     public PlayerController player;
-
     public ButtonManager buttonManager; // Reference to ButtonManager
 
     public void StartRecording()
@@ -27,7 +27,8 @@ public class RecordPlaybackManager : MonoBehaviour
 
         isRecording = true;
         recordedActions.Clear();
-        startTime = Time.time;
+        startTime = 0f; // Reset startTime
+        lastActionTime = 0f; // Reset lastActionTime
 
         player.SetControl(false); // Disable movement during recording
         buttonManager.OnRecordingPress(); // Update button states
@@ -35,7 +36,15 @@ public class RecordPlaybackManager : MonoBehaviour
 
     public void StopRecording()
     {
+        if (!isRecording) return;
+
         isRecording = false;
+
+        // Adjust the timing of the last action to remove idle delay
+        if (recordedActions.Count > 0)
+        {
+            recordedActions[recordedActions.Count - 1].time = Time.time - startTime;
+        }
 
         player.SetControl(false); // Still disable movement
         buttonManager.OnStopPress(); // Update button states
@@ -52,18 +61,22 @@ public class RecordPlaybackManager : MonoBehaviour
         StartCoroutine(PlaybackRoutine());
     }
 
-
     private IEnumerator PlaybackRoutine()
     {
         while (currentActionIndex < recordedActions.Count)
         {
             var action = recordedActions[currentActionIndex];
 
-            // Wait for the correct timing to execute the action
+            // Wait for the relative timing between actions
             if (currentActionIndex == 0)
+            {
                 yield return new WaitForSeconds(action.time);
+            }
             else
-                yield return new WaitForSeconds(action.time - recordedActions[currentActionIndex - 1].time);
+            {
+                float waitTime = action.time - recordedActions[currentActionIndex - 1].time;
+                yield return new WaitForSeconds(waitTime);
+            }
 
             // Execute the recorded action
             ExecuteAction(action.actionType);
@@ -73,6 +86,9 @@ public class RecordPlaybackManager : MonoBehaviour
 
         isPlaying = false;
         player.SetControl(false); // Disable movement after playback finishes
+
+        // Reset button states after playback ends
+        buttonManager.OnStopPress(); // Simulate stop button state to re-enable recording
     }
 
     private void Update()
@@ -104,11 +120,22 @@ public class RecordPlaybackManager : MonoBehaviour
 
     private void RecordAction(string actionType)
     {
+        float currentTime = Time.time;
+
+        // Set the startTime to the time of the first action
+        if (startTime == 0f)
+        {
+            startTime = currentTime;
+        }
+
+        // Record the action relative to the first action
         recordedActions.Add(new ActionRecord
         {
             actionType = actionType,
-            time = Time.time - startTime
+            time = currentTime - startTime // Time since the first action
         });
+
+        lastActionTime = currentTime; // Update the last action time
     }
 
     private void ExecuteAction(string actionType)

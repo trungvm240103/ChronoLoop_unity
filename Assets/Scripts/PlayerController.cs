@@ -2,15 +2,18 @@
 
 public class PlayerController : MonoBehaviour
 {
-    public float moveSpeed = 5f; 
-    public float jumpForce = 10f; 
+    public float moveSpeed = 5f;
+    public float jumpForce = 10f;
+    public float fallThreshold = -10f; // Y-position threshold for respawn
+    public Vector3 respawnPosition;    // Respawn position
 
     private Rigidbody2D rb;
-    private bool canControl = false; 
+    private bool canControl = false;
 
     void Start()
     {
         rb = GetComponent<Rigidbody2D>();
+        respawnPosition = transform.position; // Set the initial spawn position
     }
 
     void Update()
@@ -20,19 +23,15 @@ public class PlayerController : MonoBehaviour
         float move = Input.GetAxis("Horizontal");
         rb.velocity = new Vector2(move * moveSpeed, rb.velocity.y);
 
-        // Flip player when moving left or right
-        if (move > 0.01f)
-        {
-            transform.localScale = new Vector3(1, 1, 1); // Face right
-        }
-        else if (move < -0.01f)
-        {
-            transform.localScale = new Vector3(-1, 1, 1); // Face left
-        }
-
         if (Input.GetKeyDown(KeyCode.Space) && Mathf.Abs(rb.velocity.y) < 0.01f)
         {
             rb.velocity = new Vector2(rb.velocity.x, jumpForce);
+        }
+
+        // Check if the player has fallen below the threshold
+        if (transform.position.y < fallThreshold)
+        {
+            Respawn();
         }
     }
 
@@ -56,5 +55,21 @@ public class PlayerController : MonoBehaviour
         rb.velocity = new Vector2(horizontalDirection * moveSpeed, jumpForce);
     }
 
+    public void Respawn()
+    {
+        Debug.Log("Respawning player...");
 
+        // Reset player position and velocity
+        transform.position = respawnPosition;
+        rb.velocity = Vector2.zero;
+        rb.angularVelocity = 0f;
+
+        Debug.Log("Player respawned at: " + respawnPosition);
+    }
+
+    public void SetRespawnPosition(Vector3 newPosition)
+    {
+        respawnPosition = newPosition;
+        Debug.Log("Respawn position updated to " + newPosition);
+    }
 }
